@@ -29,6 +29,7 @@ data = {
      "120200244" :
     {
         "name" : "Bassant Tarek",
+        "email" : "bassant.tarek@ejust.edu.eg",
         "id" : "120200244",
         "total_attendance":6,
         "year" : 4,
@@ -45,14 +46,32 @@ data = {
      "120200067" :
     {
         "name" : "Gasser Amr",
+        "email": "gasser.amr@ejust.edu.eg",
         "id" : "120200067",
         "total_attendance":6,
         "year" : 4,
         "Last_attendance_time" : "2023-12-07 00:54:34"
     },
 
+    "120190071":
+        {
+            "name": "Mario Medhat",
+            "id": "120190071",
+            "email" : "mario.medhat@ejust.edu.eg",
+            "total_attendance": 6,
+            "year": 4,
+            "Last_attendance_time": "2023-12-07 00:54:34"
+        },
 
-}
+    "120200062":
+        {
+            "name": "Sohila Kandil",
+            "id": "120200062",
+            "total_attendance": 6,
+            "year": 4,
+            "Last_attendance_time": "2023-12-07 00:54:34"
+        },
+ }
 
 for key, value in data.items():
     ref.child(key).set(value)
