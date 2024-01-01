@@ -1,50 +1,10 @@
 import cv2
 import pickle
-import os
-import face_recognition
 import numpy as np
-# Setup webcam
-video = cv2.VideoCapture(0)
-video.set(3, 765)
-video.set(4,432)
-# Read the background image
-Background = cv2.imread('Resources/Background-01.png')
-folderMode = 'Resources/Modes'
-img_mode_path = os.listdir(folderMode)
-img_mode_list = []
-# Importing the mode Images in the Background
-for path in img_mode_path:
-    img_mode_list.append(cv2.imread(os.path.join(folderMode,path)))
-#load the encoding file that have ids
-print("Loading Encodingfile")
-file=open("Encodingfile.p","rb")
-encodelistknownwithids=pickle.load(file)
-file.close()
-encodelistknown,studIds=encodelistknownwithids
-print("Encodingfile loaded")
-while True:
-  is_capture, frame = video.read()
-  frame_small = cv2.resize(frame, (765, 432),None,0.25,0.25)
-  frame_small =cv2.cvtColor(frame_small,cv2.COLOR_BGR2RGB)
-  facecurframe=face_recognition.face_locations(frame_small)
-  encodecurframe=face_recognition.face_encodings(frame_small,facecurframe)
-  Background[200:200 + 432, 55:55 + 765] = frame_small
-  Background[140:140+ 420, 970:970 + 230] =img_mode_list[2]
-  for encodeface,faceloc in zip(encodecurframe,facecurframe):
-     matches=face_recognition.compare_faces(encodelistknown,encodeface)
-     faceid=face_recognition.face_distance(encodelistknown,encodeface)
-     matchIndex=np.argmin(faceid) #give the index where the face is recognized
-     if matches[matchIndex]==True:
-        print("Detected Known Face")
-        y1,x2,y2,x1=faceloc
-        y1,x2,y2,x1=y1*4,x2*4,y2*4,x1*4
-        bbox=55+x1,162+y1,x2-x1,y2-y1
-        #imageBackground=cvzone.cornerRect(imageBackground,bbox,rt=0)
-  cv2.imshow("Attendace system", Background)
-  press = cv2.waitKey(1)
-  if press == ord("B"):
-    break
-
+import face_recognition
+import firebase_admin
+from firebase_admin import credentials, db, storage
+import os
 import GUI
 import csv
 from datetime import datetime, timedelta
@@ -85,8 +45,8 @@ def process_image(file_path):
 
         attendance_list = []
 
-        # Detect faces using a faster but less accurate model for quick processing
-        face_locations = face_recognition.face_locations(img_small, model="hog")
+        # Detect faces using the hog model with a higher number of upsamples for higher accuracy
+        face_locations = face_recognition.face_locations(img_small, number_of_times_to_upsample=3)
 
         # If no faces are detected, there's no point in continuing
         if not face_locations:
@@ -95,22 +55,28 @@ def process_image(file_path):
 
         # Encode faces in the image
         encode_img = face_recognition.face_encodings(img_small, face_locations)
-         # Create a new list to store the attendance data
+
+        # Create a new list to store the attendance data
         new_attendance_list = []
 
         # Keep track of the student IDs that have already been added to the attendance list
         added_student_ids = set()
+
         for encodeface, faceloc in zip(encode_img, face_locations):
-            matches = face_recognition.compare_faces(encodelistknown, encodeface, tolerance=0.8)
+            matches = face_recognition.compare_faces(encodelistknown, encodeface, tolerance=0.4)
             facedistance = face_recognition.face_distance(encodelistknown, encodeface)
             matchIndex = np.argmin(facedistance)
 
-            if matches[matchIndex] and facedistance[matchIndex] < 0.8:
+            if matches[matchIndex] and facedistance[matchIndex] < 0.4:
                 student_id = studIds[matchIndex]
-                student_info = db.reference(f'Students/{student_id}').get() or {}
-                name = student_info.get('name', "Unknown")
-                email = student_info.get('email', "Unknown")
-
+                student_info = db.reference(f'Students/{student_id}').get()
+                if isinstance(student_info, dict):
+                    name = student_info.get('name', "Unknown")
+                    email = student_info.get('email', "Unknown")
+                else:
+                    name = "Unknown"
+                    email = "Unknown"
+                    student_id = "Unknown"
             else:
                 name = "Unknown"
                 email = "Unknown"
@@ -118,16 +84,17 @@ def process_image(file_path):
 
             # Draw a rectangle around the face and write the name
             y1, x2, y2, x1 = faceloc
-            y1, x2, y2, x1 = [int(coord * (100 / scale_percent)) for coord in (y1, x2, y2, x1)]  # Scale back up
+            y1, x2, y2, x1 = [int(coord / scale_percent) for coord in (y1, x2, y2, x1)]  # Scale back up
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(img, name, (x1, y2 + 20), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+
             # Add student info to the new attendance list if the student ID has not already been added
             if student_id not in added_student_ids:
                 new_attendance_list.append([student_id, name, email, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
                 added_student_ids.add(student_id)
 
         # Write attendance to CSV file
-        with open('attendance.csv', 'w', newline='') as file:
+        with open('attendance.csv', 'a', newline='') as file:
             writer = csv.writer(file)
             for entry in new_attendance_list:
                 writer.writerow(entry)
@@ -136,6 +103,9 @@ def process_image(file_path):
         cv2.imshow("Processed Image", img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -220,5 +190,3 @@ def process_camera():
 if __name__ == "__main__":
     GUI.run_gui()  # Start the GUI
 
-video.release()
-cv2.destroyAllWindows()

@@ -55,7 +55,6 @@ data = {
         "year" : 4,
         "Last_attendance_time" : "2023-12-07 00:54:34"
     },
-
     "120190071":
         {
             "name": "Mario Medhat",
@@ -220,6 +219,5 @@ data = {
             "Last_attendance_time": "2023-12-07 00:54:34"
         },
  }
-
 for key, value in data.items():
     ref.child(key).set(value)
