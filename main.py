@@ -46,7 +46,7 @@ def process_image(file_path):
         attendance_list = []
 
         # Detect faces using a faster but less accurate model for quick processing
-        face_locations = face_recognition.face_locations(img_small, model="hog")
+        face_locations = face_recognition.face_locations(img_small, model="hog",number_of_times_to_upsample=3)
 
         # If no faces are detected, there's no point in continuing
         if not face_locations:
@@ -55,7 +55,10 @@ def process_image(file_path):
 
         # Encode faces in the image
         encode_img = face_recognition.face_encodings(img_small, face_locations)
-
+          # Create a new list to store the attendance data
+        new_attendance_list = []
+        # Keep track of the student IDs that have already been added to the attendance list
+        added_student_ids = set()
         for encodeface, faceloc in zip(encode_img, face_locations):
             matches = face_recognition.compare_faces(encodelistknown, encodeface, tolerance=0.7)
             facedistance = face_recognition.face_distance(encodelistknown, encodeface)
@@ -83,8 +86,8 @@ def process_image(file_path):
         # Write attendance to CSV file
         with open('attendance.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["ID", "Name", "Email", "Date"])
-            writer.writerows(attendance_list)
+            for entry in new_attendance_list:
+                writer.writerow(entry)
 
         # Display the image
         cv2.imshow("Processed Image", img)
