@@ -17,59 +17,102 @@ if not firebase_admin._apps:
         'storageBucket': "facerecognition-159b3.appspot.com"
     })
 
-# Load the encoding file that has encodings and student IDs
 with open('Encodingfile.p', 'rb') as file:
     encodelistknown, studIds = pickle.load(file)
 
+
 # Function to resize an image
-def resize_image(img, target_size):
-    return cv2.resize(img, target_size)
+def resize(img, scale_percent):
+    width = int(img.shape[1] * scale_percent / 100)
+    height = int(img.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+
 
 # Process an uploaded image
 def process_image(file_path):
-    # Load the encoding file
-    with open('Encodingfile.p', 'rb') as file:
-        encodelistknown, studIds = pickle.load(file)
+    try:
+        # Read the image
+        img = cv2.imread(file_path)
+        if img is None:
+            raise ValueError(f"Unable to read the image from the path: {file_path}")
 
-    # Read the image
-    img = cv2.imread(file_path)
-    img_small = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
-    img_small = cv2.cvtColor(img_small, cv2.COLOR_BGR2RGB)
+        # Resize and convert image for processing
+        # Adjust the scale percent according to your needs for balance between speed and accuracy
+        scale_percent = 50  # percentage of original size
+        img_small = cv2.resize(img, (0, 0), fx=scale_percent/100, fy=scale_percent/100)
+        img_small = cv2.cvtColor(img_small, cv2.COLOR_BGR2RGB)
 
-    attendance_list = []
+        attendance_list = []
 
-    # Detect faces and encode them
-    face_locations = face_recognition.face_locations(img_small)
-    encode_img = face_recognition.face_encodings(img_small, face_locations)
+        # Detect faces using the hog model with a higher number of upsamples for higher accuracy
+        face_locations = face_recognition.face_locations(img_small, number_of_times_to_upsample=3)
 
-    for encodeface, faceloc in zip(encode_img, face_locations):
-        matches = face_recognition.compare_faces(encodelistknown, encodeface)
-        facedistance = face_recognition.face_distance(encodelistknown, encodeface)
-        matchIndex = np.argmin(facedistance)
+        # If no faces are detected, there's no point in continuing
+        if not face_locations:
+            print("No faces detected in the image.")
+            return img, attendance_list
 
-        if matches[matchIndex]:
-            student_id = studIds[matchIndex]
-            student_info = db.reference(f'Students/{student_id}').get()
+        # Encode faces in the image
+        encode_img = face_recognition.face_encodings(img_small, face_locations)
+
+        # Create a new list to store the attendance data
+        new_attendance_list = []
+
+        # Keep track of the student IDs that have already been added to the attendance list
+        added_student_ids = set()
+
+        for encodeface, faceloc in zip(encode_img, face_locations):
+            matches = face_recognition.compare_faces(encodelistknown, encodeface, tolerance=0.4)
+            facedistance = face_recognition.face_distance(encodelistknown, encodeface)
+            matchIndex = np.argmin(facedistance)
+
+            if matches[matchIndex] and facedistance[matchIndex] < 0.4:
+                student_id = studIds[matchIndex]
+                student_info = db.reference(f'Students/{student_id}').get()
+                if isinstance(student_info, dict):
+                    name = student_info.get('name', "Unknown")
+                    email = student_info.get('email', "Unknown")
+                else:
+                    name = "Unknown"
+                    email = "Unknown"
+                    student_id = "Unknown"
+            else:
+                name = "Unknown"
+                email = "Unknown"
+                student_id = "Unknown"
 
             # Draw a rectangle around the face and write the name
             y1, x2, y2, x1 = faceloc
-            y1, x2, y2, x1 = y1 * 4, x2 * 4, y2 * 4, x1 * 4
+            y1, x2, y2, x1 = [int(coord / scale_percent) for coord in (y1, x2, y2, x1)]  # Scale back up
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(img, student_info['name'], (x1, y2 + 20), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(img, name, (x1, y2 + 20), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
-            # Add student info to the attendance list
-            attendance_list.append([student_id, student_info['name'], student_info['email'], datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            # Add student info to the new attendance list if the student ID has not already been added
+            if student_id not in added_student_ids:
+                new_attendance_list.append([student_id, name, email, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                added_student_ids.add(student_id)
 
-    # Write attendance to CSV file
-    with open('attendance.csv', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(["ID", "Name", "Email", "Date"])
-        writer.writerows(attendance_list)
+        # Write attendance to CSV file
+        with open('attendance.csv', 'a', newline='') as file:
+            writer = csv.writer(file)
+            for entry in new_attendance_list:
+                writer.writerow(entry)
 
-    # Display the image
-    cv2.imshow("Processed Image", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        # Display the image
+        cv2.imshow("Processed Image", img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+def resize_image(img, target_size):
+    return cv2.resize(img, target_size)
 
 def process_camera():
     bucket = storage.bucket()  # Reference to the storage service
@@ -144,9 +187,6 @@ def process_camera():
         cv2.imshow("Attendance system", Background)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
-    video.release()
-    cv2.destroyAllWindows()
 if __name__ == "__main__":
     GUI.run_gui()  # Start the GUI
 
