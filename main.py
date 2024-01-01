@@ -1,10 +1,8 @@
 import cv2
 import pickle
 import os
-<<<<<<< Updated upstream
 import face_recognition
 import numpy as np
-#import cvzone
 # Setup webcam
 video = cv2.VideoCapture(0)
 video.set(3, 765)
@@ -46,7 +44,7 @@ while True:
   press = cv2.waitKey(1)
   if press == ord("B"):
     break
-=======
+
 import GUI
 import csv
 from datetime import datetime, timedelta
@@ -221,7 +219,6 @@ def process_camera():
             break
 if __name__ == "__main__":
     GUI.run_gui()  # Start the GUI
->>>>>>> Stashed changes
 
 video.release()
 cv2.destroyAllWindows()
