@@ -20,7 +20,6 @@ if not firebase_admin._apps:
 with open('Encodingfile.p', 'rb') as file:
     encodelistknown, studIds = pickle.load(file)
 
-
 # Function to resize an image
 def resize(img, scale_percent):
     width = int(img.shape[1] * scale_percent / 100)
@@ -40,13 +39,13 @@ def process_image(file_path):
         # Resize and convert image for processing
         # Adjust the scale percent according to your needs for balance between speed and accuracy
         scale_percent = 50  # percentage of original size
-        img_small = resize(img, scale_percent)
+        img_small = cv2.resize(img, (0, 0), fx=scale_percent/100, fy=scale_percent/100)
         img_small = cv2.cvtColor(img_small, cv2.COLOR_BGR2RGB)
 
         attendance_list = []
 
-        # Detect faces using a faster but less accurate model for quick processing
-        face_locations = face_recognition.face_locations(img_small, model="hog")
+        # Detect faces using the hog model with a higher number of upsamples for higher accuracy
+        face_locations = face_recognition.face_locations(img_small, number_of_times_to_upsample=3)
 
         # If no faces are detected, there's no point in continuing
         if not face_locations:
@@ -56,16 +55,27 @@ def process_image(file_path):
         # Encode faces in the image
         encode_img = face_recognition.face_encodings(img_small, face_locations)
 
+        # Create a new list to store the attendance data
+        new_attendance_list = []
+
+        # Keep track of the student IDs that have already been added to the attendance list
+        added_student_ids = set()
+
         for encodeface, faceloc in zip(encode_img, face_locations):
-            matches = face_recognition.compare_faces(encodelistknown, encodeface, tolerance=0.6)
+            matches = face_recognition.compare_faces(encodelistknown, encodeface, tolerance=0.4)
             facedistance = face_recognition.face_distance(encodelistknown, encodeface)
             matchIndex = np.argmin(facedistance)
 
-            if matches[matchIndex] and facedistance[matchIndex] < 0.6:
+            if matches[matchIndex] and facedistance[matchIndex] < 0.4:
                 student_id = studIds[matchIndex]
-                student_info = db.reference(f'Students/{student_id}').get() or {}
-                name = student_info.get('name', "Unknown")
-                email = student_info.get('email', "Unknown")
+                student_info = db.reference(f'Students/{student_id}').get()
+                if isinstance(student_info, dict):
+                    name = student_info.get('name', "Unknown")
+                    email = student_info.get('email', "Unknown")
+                else:
+                    name = "Unknown"
+                    email = "Unknown"
+                    student_id = "Unknown"
             else:
                 name = "Unknown"
                 email = "Unknown"
@@ -73,18 +83,20 @@ def process_image(file_path):
 
             # Draw a rectangle around the face and write the name
             y1, x2, y2, x1 = faceloc
-            y1, x2, y2, x1 = [int(coord * (100 / scale_percent)) for coord in (y1, x2, y2, x1)]  # Scale back up
+            y1, x2, y2, x1 = [int(coord / scale_percent) for coord in (y1, x2, y2, x1)]  # Scale back up
             cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(img, name, (x1, y2 + 20), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
-            # Add student info to the attendance list
-            attendance_list.append([student_id, name, email, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            # Add student info to the new attendance list if the student ID has not already been added
+            if student_id not in added_student_ids:
+                new_attendance_list.append([student_id, name, email, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                added_student_ids.add(student_id)
 
         # Write attendance to CSV file
-        with open('attendance.csv', 'w', newline='') as file:
+        with open('attendance.csv', 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["ID", "Name", "Email", "Date"])
-            writer.writerows(attendance_list)
+            for entry in new_attendance_list:
+                writer.writerow(entry)
 
         # Display the image
         cv2.imshow("Processed Image", img)
