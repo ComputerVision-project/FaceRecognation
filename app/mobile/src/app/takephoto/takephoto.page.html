@@ -1,0 +1,37 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button text="Take a Photo" name="arrow-back-outline"></ion-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-grid>
+    <ion-row>
+      <ion-col>
+        <div class="container">
+          
+          <ion-img class="backcontainer" [src]="image" *ngIf="image && !processedImage "></ion-img>
+          <ion-img class="backcontainer" [src]="processedImage" *ngIf="processedImage"></ion-img>
+          
+          <div *ngIf="image" class="btns">
+            <ion-button shape="round" (click)="uploadImage()">
+              Confirm
+            </ion-button>
+            <ion-button shape="round"(click)="reset()">
+              Reset
+            </ion-button>
+            <ion-button shape="round" *ngIf="downloadLinkAvailable" (click)="downloadCSV()">
+              Download CSV
+            </ion-button>
+          </div>
+          
+        </div>
+        
+        
+      </ion-col>
+      
+    </ion-row>
+  </ion-grid>
+</ion-content>
