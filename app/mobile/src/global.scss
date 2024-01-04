@@ -1,0 +1,89 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+body{
+  background: url('./assets/Background_back-01.svg') no-repeat center center fixed;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+  overflow:auto;
+}
+
+ion-content {
+    --background:transparent;
+}
+ion-toolbar {
+    --background: transparent;
+    --ion-color-base: transparent !important;
+  }
+  
+  ion-header, ion-footer {
+    border: 0px !important;
+    border-bottom-color: transparent !important;
+    background-image: none !important;
+    border-bottom: none !important;
+  }
+  .header-md, .header-ios, .footer-md, .footer-ios{
+    box-shadow:none ;
+    --webkit-box-shadow: none ;
+ }
+ 
+ ion-button{
+    --background:#ffffff;
+    color:#594BFD;
+    --padding-top: 15px;
+    --padding-bottom: 15px;
+    font-weight: bold;
+}
+ion-grid, ion-row, ion-col{
+    margin: 0;
+    padding: 0;
+}
+ion-back-button{
+  --border-radius: 25px;
+  --background:#ffffff;
+  --padding-top: 7px;
+  --padding-bottom: 7px;
+  color:#594BFD;
+  font-weight: bold;
+}
+.btns{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  // gap: 7px;
+
+  > ion-button{
+      width: 182px;
+  }
+}
+:root{
+  background-color: transparent !important;
+  
+  
+}
